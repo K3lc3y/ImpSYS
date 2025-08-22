@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Estoque de Insumos</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Inter:400,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <header>
+        <div>
+            <h1>Estoque de Insumos</h1>
+            <a href="{{ url_for('index') }}">Registro de Trocas</a>
+        </div>
+        <div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="modeToggle">
+                <span class="slider"></span>
+            </label>
+            <span class="toggle-label" id="toggleLabel">Modo Escuro</span>
+        </div>
+    </header>
+
+    <h2>Movimentação de Estoque</h2>
+    <form method="post" autocomplete="off" style="margin-bottom:28px;">
+        <label>Modelo:
+            <select name="modelo" required>
+                <option value="" disabled selected>Selecione</option>
+                {% for modelo in modelos %}
+                <option>{{ modelo }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Insumo:
+            <select name="insumo" required>
+                <option value="" disabled selected>Selecione</option>
+                {% for i in insumos %}
+                <option>{{ i }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Quantidade:
+            <div class="qtd-box">
+                <button type="button" onclick="alteraQtd(-1)">−</button>
+                <input type="text" id="campoQtd" name="quantidade" value="1" readonly>
+                <button type="button" onclick="alteraQtd(1)">+</button>
+            </div>
+        </label>
+        <label>
+            <select name="acao" required>
+                <option value="entrada">Entrada (+)</option>
+                <option value="saida">Remover/Defeito (−)</option>
+            </select>
+        </label>
+        <button type="submit" style="margin-left:12px;">Confirmar</button>
+    </form>
+
+    <h2>Visão Geral do Estoque</h2>
+    <table>
+        <tr>
+            <th>Modelo</th>
+            {% for i in insumos %}
+            <th>{{ i }}</th>
+            {% endfor %}
+        </tr>
+        {% for modelo in modelos %}
+        <tr>
+            <td>{{ modelo }}</td>
+            {% for insumo in insumos %}
+            <td>
+                {{ estoque[modelo ~ '|' ~ insumo] }}
+                {% if estoque[modelo ~ '|' ~ insumo] <= limite[insumo] %}
+                    <span class="alerta" title="Baixo estoque">&#9888;</span>
+                {% else %}
+                    <span class="ok" title="Estoque bom">&#10003;</span>
+                {% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+<script>
+function alteraQtd(diff) {
+    const campo = document.getElementById('campoQtd');
+    let val = parseInt(campo.value) || 1;
+    val += diff;
+    if (val < 1) val = 1;
+    campo.value = val;
+}
+</script>
+<script>
+    // Theme toggle logic
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('theme') || (prefersDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
+    const modeToggle = document.getElementById('modeToggle');
+    const toggleLabel = document.getElementById('toggleLabel');
+    if (modeToggle && toggleLabel) {
+        if (savedTheme === 'dark') {
+            modeToggle.checked = true;
+            toggleLabel.textContent = "Modo Claro";
+        } else {
+            modeToggle.checked = false;
+            toggleLabel.textContent = "Modo Escuro";
+        }
+        modeToggle.addEventListener('change', function() {
+            if (this.checked) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                toggleLabel.textContent = "Modo Claro";
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                toggleLabel.textContent = "Modo Escuro";
+            }
+        });
+    }
+</script>
+</body>
+</html>

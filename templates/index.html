@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Controle de Insumos das Impressoras</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Inter:400,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <header>
+        <div>
+            <h1>Controle de Insumos das Impressoras</h1>
+            <a href="{{ url_for('estoque') }}">Estoque de Insumos</a>
+        </div>
+        <div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="modeToggle">
+                <span class="slider"></span>
+            </label>
+            <span class="toggle-label" id="toggleLabel">Modo Escuro</span>
+        </div>
+    </header>
+
+    <h2>Registrar troca de insumo</h2>
+    <form method="post" autocomplete="off">
+        <label>Impressora:
+            <select name="impressora" required>
+                <option value="" disabled selected>Selecione</option>
+                {% for imp in impressoras %}
+                <option value="{{ imp.nome }}">{{ imp.nome }} ({{ imp.modelo }})</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Insumo:
+            <select name="insumo" required>
+                <option value="" disabled selected>Selecione</option>
+                {% for i in insumos %}
+                <option>{{ i }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Usuário:
+            <select name="usuario" required>
+                <option value="" disabled selected>Selecione</option>
+                {% for u in usuarios %}
+                <option>{{ u }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Data: <input type="date" name="data" required></label>
+        <label>Hora: <input type="time" name="hora" required></label>
+        <label>Contador atual de páginas:
+            <input type="number" name="contador_atual" min="0" required>
+        </label>
+        <br>
+        <button type="submit">Registrar</button>
+    </form>
+
+    <div id="alertaEstoque" style="margin: 12px 0 0 0;"></div>
+
+    <h2>Histórico de trocas</h2>
+
+<!--     <form method="get" style="margin-bottom:18px;">
+        <label>Ordenar por:
+            <select name="ordem" onchange="this.form.submit()" style="margin-left:8px;">
+                <option value="data" {% if ordem=='data' %}selected{% endif %}>Data (mais recente)</option>
+                <option value="impressora" {% if ordem=='impressora' %}selected{% endif %}>Impressora</option>
+                <option value="insumo" {% if ordem=='insumo' %}selected{% endif %}>Insumo (Toner/Fotocondutor/Fusor)</option>
+            </select>
+        </label>
+        <noscript><button type="submit">OK</button></noscript>
+    </form>
+ -->
+
+<table>
+		<tr>
+			<th>
+				<a href="{{ url_for('index', ordem='impressora', direcao='asc' if ordem != 'impressora' or direcao == 'desc' else 'desc') }}"
+				   style="text-decoration:none; color:inherit;">
+				   Impressora
+				   {% if ordem == 'impressora' %}
+					   {% if direcao == 'asc' %} &#8593; {% else %} &#8595; {% endif %}
+				   {% endif %}
+				</a>
+			</th>
+			<th>Modelo</th>
+			<th>
+				<a href="{{ url_for('index', ordem='insumo', direcao='asc' if ordem != 'insumo' or direcao == 'desc' else 'desc') }}"
+				   style="text-decoration:none; color:inherit;">
+				   Insumo
+				   {% if ordem == 'insumo' %}
+					   {% if direcao == 'asc' %} &#8593; {% else %} &#8595; {% endif %}
+				   {% endif %}
+				</a>
+			</th>
+			<th>
+				<a href="{{ url_for('index', ordem='data', direcao='asc' if ordem != 'data' or direcao == 'desc' else 'desc') }}"
+				   style="text-decoration:none; color:inherit;">
+				   Data
+				   {% if ordem == 'data' %}
+					   {% if direcao == 'asc' %} &#8593; {% else %} &#8595; {% endif %}
+				   {% endif %}
+				</a>
+			</th>
+            <!-- <th>Hora</th> -->
+            <th>Usuário</th>
+            <th>Contador atual</th>
+            <th>Contador anterior</th>
+            <th>Páginas pelo insumo</th>
+        </tr>
+        {% for r in registros %}
+        <tr>
+            <td>{{ r['impressora'] }}</td>
+            <td>{{ r['modelo'] }}</td>
+            <td>{{ r['insumo'] }}</td>
+            <td>{{ r['data']|data_br }}</td>
+            <!-- <td>{{ r['hora'] }}</td> -->
+            <td>{{ r['usuario'] }}</td>
+            <td>{{ r['contador_atual'] }}</td>
+            <td>{{ r['contador_anterior'] }}</td>
+            <td>{{ r['paginas_pelo_insumo'] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+<div class="table-navigation" style="text-align:center; margin:12px;">
+    {% if pagina > 0 %}
+        <a href="{{ url_for('index', ordem=ordem, direcao=direcao, pagina=pagina-1) }}">
+            &#8592; 
+        </a>
+    {% endif %}
+    {% if (pagina+1)*reg_por_pagina < reg_total %}
+        {% if pagina > 0 %} &nbsp; | &nbsp; {% endif %}
+        <a href="{{ url_for('index', ordem=ordem, direcao=direcao, pagina=pagina+1) }}">
+             &#8594;
+        </a>
+    {% endif %}
+</div>
+
+<!-- ALERTA DINÂMICO DE ESTOQUE BAIXO -->
+<script>
+    // Map model by printer name
+    function getModelo(impressora) {
+        const map = {
+            {% for imp in impressoras %}
+            '{{ imp.nome }}': '{{ imp.modelo }}',
+            {% endfor %}
+        };
+        return map[impressora];
+    }
+    const estoque = {{ estoque|tojson }};
+    const limites = {{ limite|tojson }};
+
+    function atualizaAlertaEstoque() {
+        const impressoraSel = document.querySelector('select[name="impressora"]').value;
+        const insumoSel = document.querySelector('select[name="insumo"]').value;
+        if (!impressoraSel || !insumoSel) {
+            document.getElementById("alertaEstoque").innerHTML = "";
+            return;
+        }
+        const modelo = getModelo(impressoraSel);
+        // chave composta precisa ser string (como Flask envia para JSON)
+		let key = modelo + '|' + insumoSel;
+		let qtd = estoque[key] ?? 0;
+        let limite = limites[insumoSel] ?? 1;
+        if (qtd <= limite+1) {
+            document.getElementById("alertaEstoque").innerHTML = `
+            <div id="alertaEstoque" class="centro-alerta">    <span class="alerta-dinamico">
+                    &#9888; Atenção: Estoque baixo de <b>${insumoSel}</b> para modelo <b>${modelo}</b> (atual: ${qtd})
+                </span></div>`;
+        } else {
+            document.getElementById("alertaEstoque").innerHTML = "";
+        }
+    }
+    document.querySelector('select[name="impressora"]').addEventListener('change', atualizaAlertaEstoque);
+    document.querySelector('select[name="insumo"]').addEventListener('change', atualizaAlertaEstoque);
+    window.onload = atualizaAlertaEstoque;
+</script>
+
+<script>
+    // Theme toggle logic
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('theme') || (prefersDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
+    const modeToggle = document.getElementById('modeToggle');
+    const toggleLabel = document.getElementById('toggleLabel');
+    if (modeToggle && toggleLabel) {
+        if (savedTheme === 'dark') {
+            modeToggle.checked = true;
+            toggleLabel.textContent = "Modo Claro";
+        } else {
+            modeToggle.checked = false;
+            toggleLabel.textContent = "Modo Escuro";
+        }
+        modeToggle.addEventListener('change', function() {
+            if (this.checked) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                toggleLabel.textContent = "Modo Claro";
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                toggleLabel.textContent = "Modo Escuro";
+            }
+        });
+    }
+</script>
+</body>
+</html>
