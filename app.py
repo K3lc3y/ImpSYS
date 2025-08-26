@@ -10,6 +10,8 @@ IMPRESSORAS = [
     {"nome": "IMPADM01", "modelo": "Lexmark MX711"},
     {"nome": "IMP_HALL01", "modelo": "Brother MFC-L6902"},
     {"nome": "IMP_HALL02", "modelo": "Brother MFC-L6902"},
+    {"nome": "IMP_CS510", "modelo": "Lexmark CS510de"},
+    {"nome": "HP Color", "modelo": "HP M750"},
 ]
 
 INSUMOS = ["Toner", "Fotocondutor", "Fusor"]
