@@ -94,11 +94,21 @@ def index():
         hora = request.form['hora']
         modelo = next((i['modelo'] for i in IMPRESSORAS if i['nome'] == impressora), '')
 
-        contador_anterior = 0
-        for rec in registros:
-            if rec['impressora'] == impressora and rec['insumo'] == insumo:
-                contador_anterior = int(rec['contador_atual'])
-                break
+        # Seleciona o último registro cronologicamente para (impressora, insumo)
+        # Usa tupla (data, hora, id) para desempate determinístico
+        matches = [r for r in registros if r['impressora'] == impressora and r['insumo'] == insumo]
+        if matches:
+            ultimo = max(
+                matches,
+                key=lambda x: (
+                    x.get('data', ''),
+                    x.get('hora', ''),
+                    int(x.get('id', '0') or 0)
+                )
+            )
+            contador_anterior = int(ultimo['contador_atual'])
+        else:
+            contador_anterior = 0
 
         paginas_pelo_insumo = contador_atual - contador_anterior
         novo_id = str(1 + max([int(r['id']) for r in registros] or [0]))
